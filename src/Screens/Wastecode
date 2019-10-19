@@ -1,0 +1,906 @@
+
+
+Trendig.js
+
+
+import React, {useState, useEffect} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Button,
+  FlatList,
+  Image,
+  Modal,
+  Dimensions,
+} from 'react-native';
+import SingleCard from './SingleCard';
+import {TouchableNativeFeedback} from 'react-native';
+import Unsplash, {toJson} from 'unsplash-js/native';
+import {ProgressBarAndroid} from 'react-native';
+
+const Trending = props => {
+  const [count, setCount] = React.useState(0);
+  const [loading, setLoading] = React.useState(false);
+  const [query, setQuery] = React.useState(0);
+  const [open, setOpen] = useState(false);
+  const [array, setArray] = useState({images: []});
+  const [modalImage, setModalImage] = useState(null);
+  const [pages, setPages] = useState(1);
+  const [imagenum] = useState(50);
+  const Width = Dimensions.get('window').height / 2.3;
+
+  const unsplash = new Unsplash({
+    applicationId:
+      '106a139f9735777ee5e220038c1dfd52ca3f91db8491cf5094660dfc2592e4a7',
+    secret: '9d5527e0b234642afa71a0bca96afaa14bf14bd000fabc693e31a29cfcb9d7ea',
+  });
+  async function imgget() {
+    const file = unsplash.photos.listPhotos(pages, imagenum, 'popular');
+    file
+      .then(toJson)
+      .then(res => setArray({images: array.images.concat(res)}))
+
+      .then(res => setQuery(res));
+  }
+
+  useEffect(() => {
+    open == false && imgget();
+  }, [pages]);
+  useEffect(() => {
+    setLoading(gogo => !gogo);
+  }, [array.images]);
+
+  handleModalOpen = () => {
+    setOpen(true);
+  };
+  function handleClickLoading() {
+    setPages(pages => pages + 1);
+    setLoading(prevLoading => !prevLoading);
+    console.log('loading');
+  }
+  const ModalScreen = props => {
+    return (
+      <View style={{marginTop: 22}}>
+        <Modal animationType="slide" transparent={false} visible={open}>
+          <View style={{marginTop: 22}}>
+            <View>
+              <Text>Hello World!</Text>
+
+              <Button
+                title="close"
+                onPress={() => {
+                  setOpen(false);
+                }}>
+                <Text>Hide Modal</Text>
+              </Button>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  };
+  return (
+    <View style={styles.Container}>
+      <View style={{marginTop: -5, height: 5}}>
+        {loading && (
+          <ProgressBarAndroid styleAttr="Horizontal" color="#fe8200" />
+        )}
+      </View>
+
+      <ModalScreen />
+
+      <FlatList
+        data={array.images}
+        keyExtractor={item => item.id}
+        getItemLayout={(data, index) => ({
+          length: Width,
+          offset: Width * index,
+          index,
+        })}
+        removeClippedSubviews={true}
+        // windowSize={10}
+        maxToRenderPerBatch={8}
+        // updateCellsBatchingPeriod={50}
+        // initialNumToRender={10}
+        columnWrapperStyle={styles.TrendingContainer}
+        onEndReachedThreshold={1}
+        onEndReached={() => {
+          open == false && handleClickLoading();
+        }}
+        renderItem={({item}) => (
+          <View style={styles.card} key={item.id}>
+            {console.log(item.id)}
+            {/* <Text>{item.urls}</Text> */}
+            <TouchableNativeFeedback onPress={() => handleModalOpen()}>
+              <View>
+                <SingleCard text={item.urls} />
+              </View>
+            </TouchableNativeFeedback>
+          </View>
+        )}
+        numColumns={2}
+      />
+
+      {/* <TouchableNativeFeedback
+        style={{width: 200}}
+        onPress={() => alert(count)}>
+        <Button title="">
+          <SingleCard />
+        </Button>
+      </TouchableNativeFeedback> */}
+    </View>
+  );
+};
+const styles = StyleSheet.create({
+  Container: {},
+  TrendingContainer: {
+    width: '90%',
+    alignSelf: 'center',
+
+    justifyContent: 'space-between',
+  },
+  progress: {
+    margin: '5%',
+  },
+});
+
+export default Trending;
+
+//Trending With Recycle View
+
+
+import React, {Component, useState, useEffect} from 'react';
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+  Dimensions,
+} from 'react-native';
+import {RecyclerListView, DataProvider, LayoutProvider} from 'recyclerlistview';
+import SingleCard from './SingleCard';
+import Unsplash, {toJson} from 'unsplash-js/native';
+
+const Trending = () => {
+  const mataProvider = new DataProvider((r1, r2) => {
+    return r1 !== r2;
+  });
+  const layoutProvider = new LayoutProvider(
+    index => {
+      return 0;
+    },
+    (type, dim) => {
+      switch (type) {
+        case 0:
+          dim.width = 200;
+          dim.height = 150;
+          break;
+      }
+    },
+  );
+  function rowRender(data) {
+    return <SingleCard text={data} />;
+  }
+
+  //states
+
+  const [array, setArray] = useState({images: []});
+
+  const [inProgressNetworkReq, setInProgreess] = useState(false);
+  const [imagenum] = useState(50);
+  const [count, setCount] = useState(0);
+  const [dataProvider, setDataProvider] = useState(
+    new DataProvider((r1, r2) => {
+      return r1 !== r2;
+    }),
+  );
+  const [pages, setPages] = useState(1);
+
+  //Functions
+  const unsplash = new Unsplash({
+    applicationId:
+      '106a139f9735777ee5e220038c1dfd52ca3f91db8491cf5094660dfc2592e4a7',
+    secret: '9d5527e0b234642afa71a0bca96afaa14bf14bd000fabc693e31a29cfcb9d7ea',
+  });
+  async function imgget() {
+    if (!inProgressNetworkReq) {
+      setInProgreess(true);
+      const file = unsplash.photos.listPhotos(pages, imagenum, 'popular');
+      setInProgreess(false);
+      file
+        .then(toJson)
+        .then(res => setArray({images: array.images.concat(res)}))
+        .then(setDataProvider(dataProvider.cloneWithRows(array.images)))
+
+        .catch(err => console.log(err));
+    }
+    setCount(count + 1);
+  }
+  function handleClickLoading() {
+    setPages(pages => pages + 1);
+    imgget();
+    console.log('loading');
+  }
+
+  //Effects
+
+  useEffect(() => {
+    imgget();
+  }, []);
+  useEffect(() => {}, [count]);
+
+  return count > 1 ? (
+    <RecyclerListView
+      contentContainerStyle={{margin: 3}}
+      onEndReached={handleClickLoading}
+      dataProvider={dataProvider}
+      layoutProvider={layoutProvider}
+      rowRenderer={rowRender}
+      onEndReached={handleClickLoading}
+      onEndReachedThreshold={1}
+    />
+  ) : null;
+};
+export default Trending;
+
+
+
+//SingleCard Working Without LayoutProvider
+
+
+import React from 'react';
+import {Card, View, Text} from 'react-native-ui-lib';
+import {StyleSheet, Dimensions} from 'react-native';
+import {TouchableNativeFeedback} from 'react-native-gesture-handler';
+
+const SingleCard = props => {
+  // const {width} = Dimensions.get('window');
+  const {small} = props.text.urls;
+  const styles = StyleSheet.create({
+    CardView: {
+      marginTop: '10%',
+      width: 500,
+      height: 100,
+      elevation: 5,
+
+      borderRadius: 0,
+      display: 'flex',
+    },
+    cardText: {
+      color: '#fff',
+    },
+    cardImage: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
+      width: 300,
+      height: 100,
+    },
+  });
+  return (
+    <Card style={styles.CardView}>
+            <TouchableNativeFeedback onPress={() => handleModalOpen()}>
+    
+        {/* {console.log('hiiiisadiasdasdasdd', props.text.urls.small)} */}
+        <Card.Image
+          imageSource={{
+            uri: `${small}`,
+          }}
+          style={styles.cardImage}></Card.Image>
+      </TouchableNativeFeedback>
+    </Card>
+  );
+};
+export default SingleCard;
+
+//Trending with Working Modal
+
+import React, {Component, useState, useEffect} from 'react';
+import {
+  View,
+  StyleSheet,
+  ActivityIndicator,
+  Text,
+  Modal,
+  Button,
+  Dimensions,
+  TouchableNativeFeedback,
+} from 'react-native';
+import {RecyclerListView, DataProvider, LayoutProvider} from 'recyclerlistview';
+import SingleCard from './SingleCard';
+import Unsplash, {toJson} from 'unsplash-js/native';
+
+const Trending = () => {
+  const mataProvider = new DataProvider((r1, r2) => {
+    return r1 !== r2;
+  });
+  const layoutProvider = new LayoutProvider(
+    index => {
+      return 0;
+    },
+    (type, dim) => {
+      switch (type) {
+        case 0:
+          dim.width = 200;
+          dim.height = 150;
+          break;
+      }
+    },
+  );
+
+  //states
+
+  const [array, setArray] = useState({images: []});
+  const [open, setOpen] = React.useState(false);
+  const [inProgressNetworkReq, setInProgreess] = useState(false);
+  const [imagenum] = useState(50);
+  const [count, setCount] = useState(0);
+  const [dataProvider, setDataProvider] = useState(
+    new DataProvider((r1, r2) => {
+      return r1 !== r2;
+    }),
+  );
+  const [pages, setPages] = useState(1);
+
+  //Functions
+  const unsplash = new Unsplash({
+    applicationId:
+      '106a139f9735777ee5e220038c1dfd52ca3f91db8491cf5094660dfc2592e4a7',
+    secret: '9d5527e0b234642afa71a0bca96afaa14bf14bd000fabc693e31a29cfcb9d7ea',
+  });
+  async function imgget() {
+    if (!inProgressNetworkReq) {
+      setInProgreess(true);
+      const file = unsplash.photos.listPhotos(pages, imagenum, 'popular');
+      setInProgreess(false);
+      file
+        .then(toJson)
+        .then(res => setArray({images: array.images.concat(res)}))
+        .then(setDataProvider(dataProvider.cloneWithRows(array.images)))
+
+        .catch(err => console.log(err));
+    }
+    setCount(count + 1);
+  }
+  function handleClickLoading() {
+    setPages(pages => pages + 1);
+    imgget();
+    console.log('loading');
+    console.log(typeof dataProvider);
+  }
+  function rowRender(data) {
+    return <SingleCard text={data} />;
+  }
+  handleModalOpen = () => {
+    setOpen(true);
+  };
+
+  rowRenderer = (type, data) => {
+    return (
+      <TouchableNativeFeedback onPress={() => handleModalOpen()}>
+        <View>
+          <SingleCard text={data} />
+        </View>
+      </TouchableNativeFeedback>
+    );
+  };
+
+  //Modal
+
+  const ModalScreen = props => {
+    return (
+      <View style={{marginTop: 22}}>
+        <Modal animationType="slide" transparent={false} visible={open}>
+          <View style={{marginTop: 22}}>
+            <View>
+              <Text>Hello World!</Text>
+
+              <Button
+                title="close"
+                onPress={() => {
+                  setOpen(false);
+                }}>
+                <Text>Hide Modal</Text>
+              </Button>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  };
+
+  //Effects
+  useEffect(() => {
+    imgget();
+  }, []);
+  useEffect(() => {}, [count]);
+  return (
+    <View>
+      {count > 1 ? (
+        <RecyclerListView
+          contentContainerStyle={{margin: 3}}
+          onEndReached={handleClickLoading}
+          dataProvider={dataProvider}
+          layoutProvider={layoutProvider}
+          onEndReached={handleClickLoading}
+          onEndReachedThreshold={1}
+          rowRenderer={rowRenderer}
+        />
+      ) : null}
+      <ModalScreen />
+    </View>
+  );
+};
+export default Trending;
+
+///Trendig with wokring dataprovider and many useEffects
+
+
+import React, { useState, useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { RecyclerListView, DataProvider, LayoutProvider } from 'recyclerlistview';
+import SingleCard from './SingleCard';
+import Unsplash, { toJson } from 'unsplash-js/native';
+
+
+
+
+
+const Trending = props => {
+  const [pages, setPages] = useState(1);
+  const [imagenum] = useState(50);
+  const [loading, setLoading] = useState(false);
+  const [array, setArray] = useState({ images: [] });
+  const [count, setCount] = useState(0);
+  const [dataprovider, setDataProvider] = useState(
+    new DataProvider((r1, r2) => {
+      return r1 !== r2;
+    }),
+  );
+  const layoutProvider = new LayoutProvider(
+    index => {
+      return 0;
+    },
+    (type, dim) => {
+      switch (type) {
+        case 0:
+          dim.width = 200;
+          dim.height = 150;
+          break;
+      }
+    },
+  );
+  const unsplash = new Unsplash({
+    applicationId:
+      '106a139f9735777ee5e220038c1dfd52ca3f91db8491cf5094660dfc2592e4a7',
+    secret: '9d5527e0b234642afa71a0bca96afaa14bf14bd000fabc693e31a29cfcb9d7ea',
+  });
+
+  async function fetchdata() {
+    const one = await unsplash.photos.listPhotos(pages, imagenum, 'popular').then(toJson)
+
+    return one
+
+  }
+  handleLoad = () => {
+
+    fetchdata().then(data => setArray({ images: array.images.concat(data) })).then(() => setDataProvider(dataprovider.cloneWithRows(array.images)))
+    console.log('handleload', pages)
+
+  }
+  function handleClickLoading() {
+    setPages(pages => pages + 1);
+    handleLoad();
+    console.log('loading');
+    console.log(typeof dataprovider);
+  }
+  // function fetchdata() {
+  //   unsplash.photos
+  //     .listPhotos(pages, imagenum, 'popular')
+  //     .then(res => setImages([...images, res]))
+  //     .then(console.log(images));
+  // }
+
+  rowRenderer = (type, data, index) => {
+    return <SingleCard text={data} />;
+  };
+  //Effects
+  useEffect(() => {
+    handleLoad()
+
+  }, []);
+
+  useEffect(() => {
+    console.log(dataprovider._data.length, "dataprovider up")
+    { dataprovider._data.length > 0 ? setCount(count + 1) : null }
+  }, [dataprovider._data]);
+  return (
+    <View style={styles.container}>
+      {console.log(dataprovider._data.length, 'dataprovider')}
+      {/* {console.log(count, dataprovider, images)} */}
+      {count > 0 ? (
+        <RecyclerListView
+          style={styles.RecyclerListView}
+          contentContainerStyle={{ margin: 3 }}
+          onEndReached={() => { handleClickLoading() }}
+          onEndReachedThreshold={2}
+          dataProvider={dataprovider}
+          layoutProvider={layoutProvider}
+          rowRenderer={rowRenderer}
+          renderFooter={null}
+        />
+      ) : null}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    borderColor: 'red',
+    borderWidth: 2
+  },
+  RecyclerListView: {
+    width: '95%',
+    alignSelf: 'center',
+    borderColor: 'blue',
+
+  }
+});
+
+export default Trending;
+
+
+//New try with async await
+
+import React, { useState, useEffect } from 'react';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import { RecyclerListView, DataProvider, LayoutProvider } from 'recyclerlistview';
+import SingleCard from './SingleCard';
+import Unsplash, { toJson } from 'unsplash-js/native';
+
+
+
+
+
+const Trending = () => {
+  const [pages, setPages] = useState(0)
+  const [imagenum, setImagenum] = useState(50)
+  const [array, setArray] = useState({ images: [] })
+  const [dataProvider, setDataProvider] = useState(
+    new DataProvider((r1, r2) => {
+      return r1 !== r2;
+    }),
+  );
+
+
+
+
+
+
+  const unsplash = new Unsplash({
+    applicationId:
+      '106a139f9735777ee5e220038c1dfd52ca3f91db8491cf5094660dfc2592e4a7',
+    secret: '9d5527e0b234642afa71a0bca96afaa14bf14bd000fabc693e31a29cfcb9d7ea',
+  });
+
+
+
+
+  fetchdata = async () => {
+    const a = await unsplash.photos.listPhotos(pages, imagenum, 'popular').then(toJson)
+
+    const c = await setArray({ images: array.images.concat(a) })
+    const d = await setDataProvider(dataProvider.cloneWithRows(array.images))
+    const b = await console.log(array.images.length, 'a')
+    console.log('fetchdata')
+
+    return b
+  }
+
+
+  useEffect(() => {
+
+    fetchdata()
+
+  }, [])
+
+  useEffect(() => {
+    console.log(dataProvider._data.length, 'seconds')
+  }, [dataProvider._data])
+
+  return (
+    <View>
+      {dataProvider._data.length > 0 ? <Text>Trending</Text> : null}
+    </View>
+  )
+}
+export default Trending
+
+//Trending with virtualized list working without layoutProvider
+import React, {useState,useEffect } from 'react';
+import { Text, View, StyleSheet, VirtualizedList, Button, ScrollView } from 'react-native';
+import Unsplash, {toJson} from 'unsplash-js/native';
+import Singlecard from './SingleCard'
+
+
+const Trending = ()=>{
+const [pages,setPages] = useState(0)
+const [imagenum,setImageNum] = useState(50)
+const [loading,setLoading] =useState(false)
+const [data,setData] = useState([])
+const unsplash = new Unsplash({
+  applicationId:
+    '106a139f9735777ee5e220038c1dfd52ca3f91db8491cf5094660dfc2592e4a7',
+  secret: '9d5527e0b234642afa71a0bca96afaa14bf14bd000fabc693e31a29cfcb9d7ea',
+});
+
+fetchdata = async()=>{
+  const a = await unsplash.photos.listPhotos(pages, imagenum, 'popular').then(toJson)
+
+  return a
+}
+renderItem = ({item}) => {
+  return (
+    <View style={styles.item}> 
+     <Singlecard/>
+    </View>
+  );
+};
+const spacerStyle = {
+  backgroundColor: 'cyan',
+ 
+};
+
+useEffect(()=>{
+  fetchdata().then(a=> setData(data.concat(a)))
+  {console.log('effect',data.length)}
+},[pages])
+  
+  return(
+    <View style={styles.container}>
+
+        
+        
+      <VirtualizedList
+            data={data}
+            getItem={(data, index) => data[index]}
+            getItemCount={() => data.length}
+            renderItem={renderItem}
+            windowSize={10}
+            contentContainerStyle={styles.contentcontainer}
+            numColumns={1}
+            removeClippedSubviews={true}
+            initialNumberToRender={20}
+            bounces={false}
+            onEndReached={()=>console.log('end')}
+            keyExtractor={(item) => item.id}
+          />
+      
+    </View>
+  )
+}
+export default Trending
+  
+ 
+  
+  
+
+    // <View>
+    //     <Text style={styles.paragraph}>
+    //       Tap the button to expand the View below this guy.
+    //     </Text>
+    //     <Button title={'Tap me!'} onPress={() => this.setState({expanded: !this.state.expanded})} />
+    //     <View style={spacerStyle} />
+    //     <View style={{maxHeight: 200}}>
+    //       <VirtualizedList
+    //         data={data}
+    //         getItem={(data, index) => data[index]}
+    //         getItemCount={() => data.length}
+    //         renderItem={this.renderItem}
+    //         windowSize={11}
+    //         removeClippedSubviews={true}
+    //         initialNumberToRender={20}
+    //         bounces={false}
+    //         keyExtractor={(item) => console.log(item)}
+    //       />
+    //     </View>
+     
+     
+ 
+
+const styles = StyleSheet.create({
+  container: {
+   width:"100%",
+
+ 
+ 
+   
+    paddingTop: 10,
+    height:'100%'
+   
+  },
+  contentcontainer:{
+
+borderColor:'blue',
+borderWidth:2,
+flexWrap:'wrap'
+
+
+  },
+  
+  item:{
+  
+ 
+  
+    borderColor:'red',
+    borderWidth:2,
+  }
+});
+
+
+//Perfectly working RecyclerListView with LayoutProvider
+
+
+
+import React,{useState,useEffect} from 'react'
+import { View, Text, Dimensions ,StyleSheet,ActivityIndicator} from "react-native";
+import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
+import Unsplash, {toJson} from 'unsplash-js/native';
+import SingleCard from './SingleCard'
+
+const Trending = ()=>{
+  let Width = Dimensions.get("window").width
+  let Height = Dimensions.get("window").height
+  const [pages,setPages] = useState(1)
+  const [imagenum,setImageNum] = useState(50)
+  const [data,setData] = useState([])
+  const [loading,setLoading] = useState(false)
+  const [dataprovider,setDataProvider] = useState(new DataProvider((r1, r2) => {
+    return r1 !== r2;
+}))
+
+const layoutProvider = new LayoutProvider(
+  index => {
+    return 0;
+  },
+  (type, dim) => {
+    switch (type) {
+      case 0:
+        dim.width = Width/2.01,
+        dim.height =Height/2.4
+        break;
+    }
+  },
+);
+  const unsplash = new Unsplash({
+    applicationId:
+      '106a139f9735777ee5e220038c1dfd52ca3f91db8491cf5094660dfc2592e4a7',
+    secret: '9d5527e0b234642afa71a0bca96afaa14bf14bd000fabc693e31a29cfcb9d7ea',
+  });
+  rowRenderer = (type,data) =>{
+    return(
+      <View style={styles.card}>
+      <SingleCard text={data}/>
+      </View>
+    )
+  }
+  renderFooter = (props)=>{
+    return(
+      <View style={styles.ActivityIndicator}>
+        <ActivityIndicator size={40} color='#73c0b0'/>
+      </View>
+    )
+  }
+  justasync = async()=>{
+   await setDataProvider(dataprovider.cloneWithRows(data))
+   console.log('just async completed')
+
+  }
+  fetchdata = async()=>{
+    setLoading(true)
+   
+    const a = await unsplash.photos.listPhotos(pages, imagenum, 'popular').then(toJson).then(b=> setData(data.concat(b)))
+  
+    return a
+  }
+useEffect(()=>{
+  console.log('Effect started ,data changed')
+  console.log(dataprovider._data.length,'lenght')
+},[dataprovider._data])
+useEffect(()=>{
+ 
+ async function hi (){
+  await fetchdata()
+ 
+  await justasync()
+  console.log('Hi function completed')
+ }
+ hi()
+  
+
+
+ 
+ 
+
+},[pages])
+
+
+
+
+
+
+  return(
+    <View style={styles.mainContainer}>{
+      
+    }
+    {dataprovider._data.length>0? <RecyclerListView
+    contentContainerStyle={styles.contentContainerStyle}
+  style={styles.RecyclerListView}
+  rowRenderer={rowRenderer}
+  dataProvider={dataprovider}
+  layoutProvider={layoutProvider}
+ 
+  renderFooter={renderFooter}
+
+/>:null}
+    </View>
+  )
+}
+const styles = StyleSheet.create({
+  mainContainer:{
+width:'100%',
+height:'100%',
+marginVertical:10,
+
+
+
+  },
+  RecyclerListView:{
+    flex: 1,
+    alignContent:'center'
+
+  }
+  ,
+  contentContainerStyle:{
+  
+  
+  },
+  card:{
+    
+  
+   
+  
+    alignItems: 'center',
+  
+  },
+  ActivityIndicator:{
+    height:80,
+   
+  }
+})
+export default Trending
+
+//
+import RNFetchBlob from 'rn-fetch-blob';
+
+// const {config, fs} = RNFetchBlob;
+// let PictureDir = fs.dirs.DCIMDir;
+// let dirs = RNFetchBlob.fs.dirs; // this is the pictures directory. You can check the available directories in the wiki.
+// let options = {
+//   fileCache: true,
+//   addAndroidDownloads: {
+//     useDownloadManager: true, // setting it to true will use the device's native download manager and will be shown in the notification bar.
+//     notification: false,
+//     path: dirs.DocumentDir + '/path-to-file.anything',
+//     //   PictureDir + '/me_' + Math.floor(date.getTime() + date.getSeconds() / 2), // this is the path where your downloaded file will live in
+//     description: 'Downloading image.',
+//   },
+// };
+// config(options)
+//   .fetch('GET', 'http://source.unsplash.com/random')
+//   .then(res => {
+//     console.log('downloaded');
+//   });
